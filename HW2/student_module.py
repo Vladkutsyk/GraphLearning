@@ -224,6 +224,36 @@ def build_adjacency(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
     # ---------------------------------------------------------------------- #
 
 
+def build_adjacency_norm(edge_index: torch.Tensor, num_nodes: int) -> torch.Tensor:
+    """
+    Build a row-normalized dense adjacency matrix with self-loops.
+    
+    Computes: A_tilde = D^{-1} * A_hat
+    where A_hat = A + I, and D is the diagonal degree matrix of A_hat.
+    """
+    # 1. Create base adjacency matrix A
+    A = torch.zeros((num_nodes, num_nodes), dtype=torch.float)
+    A[edge_index[0], edge_index[1]] = 1.0
+    
+    # 2. Create A_hat (Adjacency WITH self-loops)
+    A_hat = A + torch.eye(num_nodes, dtype=torch.float)
+    
+    # 3. Calculate the degree of each node based on A_hat (sum across rows)
+    # Because of the self-loops, the minimum degree is 1, preventing division by zero.
+    degree = A_hat.sum(dim=1)
+    
+    # 4. Calculate D^{-1} (inverse degree)
+    D_inv = 1.0 / degree
+    
+    # 5. Multiply D^{-1} * A_hat
+    # We use unsqueeze(1) to turn D_inv from shape (N,) to (N, 1).
+    # This allows broadcasting to divide each row in A_hat by that row's degree.
+    A_norm = D_inv.unsqueeze(1) * A_hat
+    
+    return A_norm
+
+
+
 class VanillaGNNLayer(torch.nn.Module):
     """A single Vanilla GNN layer.
 
